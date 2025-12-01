@@ -269,8 +269,8 @@ Contributions are welcome! Please feel free to submit a Pull Request. For major 
 
 This project builds upon:
 - [OHIF Viewer](https://ohif.org/) - Open Health Imaging Foundation Viewer
-- [SAM2](https://arxiv.org/abs/2408.00714) - Segment Anything Model 2 by Meta
-- [nnInteractive](https://arxiv.org/abs/2503.08373) - Interactive 3D Segmentation Framework
+- [SAM2](https://github.com/facebookresearch/sam2) - Segment Anything Model 2 by Meta
+- [nnInteractive](https://github.com/MIC-DKFZ/nnInteractive) - Interactive 3D Segmentation Framework
 - [MedSAM2](https://github.com/bowang-lab/MedSAM2) - MedSAM2 by Bowang lab
 
 
