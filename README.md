@@ -56,7 +56,6 @@ Click to watch the full demonstration of OHIF-AI in action.
 
 ### Prerequisites
 
-- **OS**: Linux (for Windows, try WSL2)
 - **Docker** (v27.3.1 or later)
 - **NVIDIA Container Toolkit** (v1.16.2 or later)
 - **CUDA** v12.6 or compatible version
