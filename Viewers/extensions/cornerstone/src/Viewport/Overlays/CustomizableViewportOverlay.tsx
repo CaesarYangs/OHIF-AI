@@ -343,7 +343,10 @@ function _getInstanceNumberFromVolume(
   const isAcquisitionPlane = vec3.length(cross) < EPSILON;
 
   if (isAcquisitionPlane) {
-    const imageId = imageIds[imageIndex];
+    // Use getCurrentImageId() to get the actual imageId being displayed,
+    // rather than indexing into imageIds array, since imageIds might not
+    // be sorted in the same order as slice positions
+    const imageId = cornerstoneViewport.getCurrentImageId?.();
 
     if (!imageId) {
       return {};
