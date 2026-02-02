@@ -160,6 +160,23 @@ function modeFactory({ modeConfiguration }) {
         //'jumpToSegment',
         //'toggleCurrentSegment',
       ]);
+
+      toolbarService.createButtonSection('textPromptSegmentationToolbox', [
+        'textPromptSegmentationContainer',
+      ]);
+
+
+      toolbarService.createButtonSection('testMedgemmaToolbox', [
+        'testMedgemmaContainer',
+      ]);
+
+      toolbarService.createButtonSection('testMedgemmaSection', [
+        'testMedgemma',
+      ]);
+
+      toolbarService.createButtonSection('textPromptSegmentationSection', [
+        'textPromptSegmentation',
+      ]);
       toolbarService.createButtonSection('segmentationToolboxUtilitySection', [
         //'LabelmapSlicePropagation',
         'InterpolateLabelmap',

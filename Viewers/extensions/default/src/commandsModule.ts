@@ -29,6 +29,7 @@ import { updateSegmentationStats } from '../../cornerstone/src/utils/updateSegme
 import axios from 'axios';
 import { toolboxState } from './stores/toolboxState';
 import { parseMultipart } from './utils/multipart';
+import { callInputDialog } from './utils/callInputDialog';
 
 
 export type HangingProtocolParams = {
@@ -1309,10 +1310,67 @@ const commandsModule = ({
         console.error('Reset nninter error:', error);
         throw error;
       }
-
     },
+    async medGemma(query: string, instruction?: string, startSlice?: number, endSlice?: number) {
+      
+      const { activeViewportId, viewports } = viewportGridService.getState();
+      const activeViewportSpecificData = viewports.get(activeViewportId);
+      const { displaySetInstanceUIDs } = activeViewportSpecificData;
+      const displaySets = displaySetService.activeDisplaySets;
+      const displaySetInstanceUID = displaySetInstanceUIDs[0];
+      const currentDisplaySets = displaySets.filter(e => {
+        return e.displaySetInstanceUID == displaySetInstanceUID;
+      })[0];
+      let url = `/monai/infer/segmentation?image=${currentDisplaySets.SeriesInstanceUID}&output=dicom_seg`;
+      let params = {
+        largest_cc: false,
+        result_extension: '.nii.gz',
+        result_dtype: 'uint16',
+        result_compress: false,
+        studyInstanceUID: currentDisplaySets.StudyInstanceUID,
+        restore_label_idx: false,
+        nninter: "medGemma",
+        texts: [query],
+        instruction: instruction || undefined,
+        startSlice: startSlice !== undefined ? startSlice : undefined,
+        endSlice: endSlice !== undefined ? endSlice : undefined,
+      };
 
-    async nninter() {
+      let data = MonaiLabelClient.constructFormData(params, null);
+
+      // Create the axios promise
+      // For medGemma, we expect a text/string response, not arraybuffer
+      const medgemmaPromise = axios.post(url, data, {
+        responseType: 'text',
+        headers: {
+          accept: 'application/json, text/plain',
+        },
+      });
+
+      // Show notification with promise support
+      uiNotificationService.show({
+        title: 'Medgemma 1.5 4B',
+        message: 'Processing medgemma request...',
+        type: 'info',
+        promise: medgemmaPromise,
+        promiseMessages: {
+          loading: 'Processing medgemma request...',
+          success: () => 'Medgemma request - Successful',
+          error: (error) => `Medgemma request - Failed: ${error.message || 'Unknown error'}`,
+        },
+      });
+
+      try {
+        const response = await medgemmaPromise;
+        if (response.status === 200) {
+          return response;
+        }
+      } catch (error) {
+        console.error('Medgemma error:', error);
+        throw error;
+      }
+    },
+    async nninter(textPrompts?: string | string[]) {
       if (toolboxState.getLocked()) {
         return;
       }
@@ -1476,10 +1534,16 @@ const commandsModule = ({
       })
       .filter(Boolean)
 
-      //Disable text prompts for nninteractive
-      const text_prompts = [] //currentMeasurements
-      //.filter(e => { return e.toolName === 'Probe2' && e.referenceSeriesUID === currentDisplaySets.SeriesInstanceUID && e.metadata.neg === false && e.metadata.SegmentNumber === segmentNumber; })
-      //.map(e => { return e.label })
+      //VoxTell - Use provided textPrompts or extract from measurements
+      let text_prompts: string[] = [];
+      if (textPrompts) {
+        // Convert to array if it's a single string
+        text_prompts = Array.isArray(textPrompts) ? textPrompts : [textPrompts];
+      } else {
+        text_prompts = currentMeasurements
+          .filter(e => { return e.toolName === 'Probe2' && e.referenceSeriesUID === currentDisplaySets.SeriesInstanceUID && e.metadata.neg === false && e.metadata.SegmentNumber === segmentNumber; })
+          .map(e => { return e.label });
+      }
 
       // Hide the measurements after inference
       for (let i = 0; i < currentMeasurements.length; i++) {
@@ -1768,6 +1832,112 @@ const commandsModule = ({
         throw error;
       }
     },
+
+    async textPromptSegmentation() {
+      if (toolboxState.getLocked()) {
+        return;
+      }
+
+      const { uiDialogService } = servicesManager.services;
+
+      try {
+        // Open dialog to get text input
+        const textInput = await callInputDialog({
+          uiDialogService,
+          defaultValue: '',
+          title: 'Text Prompt Segmentation (VoxTell)',
+          placeholder: 'Enter text prompt for segmentation',
+          submitOnEnter: true,
+        });
+
+        // If user cancelled or entered empty text, return early
+        if (!textInput || textInput.trim() === '') {
+          return;
+        }
+
+        // Temporarily override refineNew with textPromptReplaceNew for this operation
+        const originalRefineNew = toolboxState.getRefineNew();
+        const textPromptReplaceNew = toolboxState.getTextPromptReplaceNew();
+        toolboxState.setRefineNew(textPromptReplaceNew);
+
+        try {
+          // Call nninter with the text prompt
+          // Reference actions.nninter - this works because the function executes
+          // after the actions object is fully created
+          return await actions.nninter(textInput.trim());
+        } finally {
+          // Restore original refineNew state
+          toolboxState.setRefineNew(originalRefineNew);
+        }
+      } catch (error) {
+        // User cancelled the dialog - callInputDialog may throw or return empty string
+        console.error('Text prompt segmentation error:', error);
+        return;
+      }
+    },
+    async testMedgemma(options?: { instruction?: string; query?: string; startSlice?: number | null; endSlice?: number | null }) {
+      const instruction = options?.instruction;
+      const query = options?.query;
+      const startSlice = options?.startSlice;
+      const endSlice = options?.endSlice;
+      const { uiDialogService } = servicesManager.services;
+
+      try {
+        // Get instruction if not provided
+        let instructionText = instruction;
+        if (!instructionText?.trim()) {
+          instructionText = 'You are an instructor teaching medical students. You are analyzing the following CT slices. Please review the slices provided below carefully.';
+        }
+        toolboxState.setMedgemmaInstruction(instructionText.trim());
+
+        // Get query if not provided
+        let queryText = query;
+        if (!queryText) {
+          queryText = await callInputDialog({
+            uiDialogService,
+            defaultValue: toolboxState.getMedgemmaQuery() || '',
+            title: 'Medgemma 1.5B - Query',
+            placeholder: 'Enter your query/question',
+            submitOnEnter: true,
+          });
+          
+          if (!queryText || queryText.trim() === '') {
+            return; // User cancelled or empty
+          }
+          toolboxState.setMedgemmaQuery(queryText.trim());
+        }
+
+        // Store slice range in state
+        if (startSlice !== undefined) {
+          toolboxState.setMedgemmaStartSlice(startSlice);
+        }
+        if (endSlice !== undefined) {
+          toolboxState.setMedgemmaEndSlice(endSlice);
+        }
+
+        // Clear previous result
+        toolboxState.setMedgemmaResult(null);
+
+        // Call medGemma with instruction, query, and slice range
+        const response = await actions.medGemma(queryText.trim(), instructionText.trim(), startSlice ?? undefined, endSlice ?? undefined);
+
+        // Extract response text from the response
+        let responseText = '';
+        if (response && response.data) {
+          // Response is a string from the backend
+          responseText = typeof response.data === 'string' ? response.data : String(response.data);
+          // Store result in toolboxState for display in Toolbox
+          toolboxState.setMedgemmaResult(responseText);
+        } else {
+          toolboxState.setMedgemmaResult('No response received');
+        }
+      } catch (error) {
+        // User cancelled the dialog or API call failed
+        console.error('Test Medgemma error:', error);
+        toolboxState.setMedgemmaResult(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        return;
+      }
+    },
     jumpToSegment: () => {
       const activeViewportId = viewportGridService.getState().activeViewportId;
       const segmentationService = servicesManager.services.segmentationService;
@@ -1923,7 +2093,10 @@ const commandsModule = ({
     sam2: actions.sam2,
     initNninter: actions.initNninter,
     resetNninter: actions.resetNninter,
+    medGemma: actions.medGemma,
     nninter: actions.nninter,
+    textPromptSegmentation: actions.textPromptSegmentation,
+    testMedgemma: actions.testMedgemma,
     jumpToSegment: actions.jumpToSegment,
     toggleCurrentSegment: actions.toggleCurrentSegment,
     updateViewportDisplaySet: actions.updateViewportDisplaySet,

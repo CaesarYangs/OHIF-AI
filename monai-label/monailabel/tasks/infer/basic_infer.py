@@ -41,7 +41,7 @@ from monailabel.transform.cache import CacheTransformDatad
 from monailabel.transform.writer import ClassificationWriter, DetectionWriter, Writer
 from monailabel.utils.others.generic import device_list, device_map, name_to_device
 from monailabel.utils.others.helper import get_scanline_filled_points_3d, clean_and_densify_polyline, spherical_kernel, calculate_dice, timeout_context
-
+from monailabel.utils.others.medgemma import window_mri, window, _encode
 from sam2.build_sam import build_sam2_video_predictor, build_sam2_video_predictor_npz
 
 from sam3.model_builder import build_sam3_video_model
@@ -91,6 +91,18 @@ download_path = snapshot_download(
     allow_patterns=[f"{MODEL_NAME}/*"],
     local_dir=DOWNLOAD_DIR
 )
+
+VOX_MODEL_NAME = "voxtell_v1.1" # Updated models may be available in the future
+
+vox_download_path = snapshot_download(
+      repo_id="mrokuss/VoxTell",
+      allow_patterns=[f"{VOX_MODEL_NAME}/*", "*.json"],
+      local_dir=DOWNLOAD_DIR
+)
+vox_model_path = os.path.join(DOWNLOAD_DIR, VOX_MODEL_NAME)
+from voxtell.inference.predictor import VoxTellPredictor
+vox_predictor = VoxTellPredictor(model_dir=vox_model_path, device=torch.device("cuda:0"))
+
 from nnInteractive.inference.inference_session import nnInteractiveInferenceSession
 
 session = nnInteractiveInferenceSession(
@@ -125,6 +137,21 @@ else:
     predictor_sam3 = None
 
 predictor_med = build_sam2_video_predictor_npz(medsam2_model_cfg, medsam2_checkpoint, vos_optimized=False)
+
+import transformers
+
+os.environ["HF_TOKEN"] = ""
+
+gem_model_id = "google/medgemma-1.5-4b-it"
+
+gem_model_kwargs = dict(
+    dtype=torch.bfloat16,
+    device_map="auto",
+    offload_buffers=True,
+)
+
+gem_processor = transformers.AutoProcessor.from_pretrained(gem_model_id, use_fast=True,  **gem_model_kwargs)
+gem_model = transformers.AutoModelForImageTextToText.from_pretrained(gem_model_id, **gem_model_kwargs)
 
 logger = logging.getLogger(__name__)
 
@@ -450,6 +477,15 @@ class BasicInferTask(InferTask):
         contrast_center = None
         contrast_window = None
         
+        if 0x00080060 in dcm_img_sample.keys():
+            modality = dcm_img_sample[0x00080060].value
+            if modality == "CT" or modality == "SC":
+                modality_type = "CT"
+            elif modality == "MR":
+                modality_type = "MR"
+            else:
+                modality_type = "Other"
+            logger.info(f"Modality: {modality_type}")
 
         if 0x00281050 in dcm_img_sample.keys():
             contrast_center = dcm_img_sample[0x00281050].value
@@ -474,11 +510,13 @@ class BasicInferTask(InferTask):
         reader.SetFileNames(dicom_filenames)
         #reader.SetOutputPixelType(SimpleITK.sitkUInt16) 
         img = reader.Execute()
+        
 
         before_nnInter = time.time()
         logger.info(f"Before nnInter: {before_nnInter-begin} secs")
         if nnInter:
             start = time.time()
+            
             img_np = sitk.GetArrayFromImage(img)[None]
             # Validate input dimensions
             if img_np.ndim != 4:
@@ -500,6 +538,159 @@ class BasicInferTask(InferTask):
                 return f'/code/predictions/init.nii.gz', final_result_json
 
             logger.info(f"interactions in _session_used_interactions: {self._session_used_interactions}")
+
+            if nnInter == "medGemma":
+                if len(data['texts'])==1 and data['texts'][0]!='' and data['texts'][0]!={}:
+                    query = data['texts'][0]
+                    # Convert image to RGB slices and MAX slice = 85
+                    img_np = img_np[0]
+                    logger.info(f"img_np shape: {img_np.shape}")
+                    num_axial_slices = img_np.shape[0]
+                    img_list = []
+                    logger.info(f"num_axial_slices: {num_axial_slices}")
+                    
+                    # Get slice range from data if provided
+                    # Note: User input is 1-indexed (slice 1, 2, 3, ...), we convert to 0-indexed internally
+                    start_slice = data.get('startSlice')
+                    end_slice = data.get('endSlice')
+                    
+                    # Determine slice indices to use
+                    if start_slice is not None or end_slice is not None:
+                        # User specified slice range (1-indexed)
+                        # Convert from 1-indexed to 0-indexed
+                        start_idx = int(start_slice) - 1 if start_slice is not None else 0
+                        end_idx = int(end_slice) if end_slice is not None else num_axial_slices
+                        # Clamp to valid range (0-indexed)
+                        start_idx = max(0, min(start_idx, num_axial_slices - 1))
+                        end_idx = max(start_idx + 1, min(end_idx, num_axial_slices))
+                        slice_indices = list(range(start_idx, end_idx))
+                        # Log in 1-indexed terms for user clarity
+                        logger.info(f"Using user-specified slice range: {start_idx + 1} to {end_idx} (1-indexed, inclusive)")
+                    else:
+                        # Use all slices (original behavior)
+                        slice_indices = list(range(num_axial_slices))
+                        logger.info(f"Using all slices: 1 to {num_axial_slices} (1-indexed)")
+                    
+                    # Reverse slice indices if instanceNumber > instanceNumber2
+                    if instanceNumber is not None and instanceNumber2 is not None and instanceNumber > instanceNumber2:
+                        slice_indices = [num_axial_slices - 1 - idx for idx in slice_indices]
+                        logger.info(f"Reversed slice indices due to instanceNumber > instanceNumber2: {slice_indices}")
+                    
+                    img_list = [img_np[i] for i in slice_indices]
+
+                     
+                    normalized_img_list = []
+                    if modality_type == "CT":
+                        for ct_slice in img_list:
+                            windowed_slice = window(ct_slice)
+                            # Round slice voxels to nearest integer number.
+                            windowed_slice = np.round(windowed_slice, 0).astype(np.uint8)
+                            normalized_img_list.append(windowed_slice)
+                    else:
+                        for mr_slice in img_list:
+                            if contrast_window != None and contrast_center !=None:
+                                windowed_slice = window_mri(mr_slice, contrast_center-contrast_window/2, contrast_center+contrast_window/2)
+                            else:
+                                windowed_slice = window_mri(mr_slice)
+                            # Round slice voxels to nearest integer number.
+                            windowed_slice = np.round(windowed_slice, 0).astype(np.uint8)
+                            normalized_img_list.append(windowed_slice)
+                    
+                    # Check the slices (debugging)
+                    #image = Image.fromarray(normalized_img_list[0], mode="RGB")
+                    #image.save(f"/code/2d_slice_{slice_indices[0]}.jpeg", format="JPEG")
+#
+                    #image = Image.fromarray(normalized_img_list[len(slice_indices)//2], mode="RGB")
+                    #image.save(f"/code/2d_slice_{slice_indices[len(slice_indices)//2]}.jpeg", format="JPEG")
+#
+                    #image = Image.fromarray(normalized_img_list[-1], mode="RGB")
+                    #image.save(f"/code/2d_slice_{slice_indices[-1]}.jpeg", format="JPEG")
+                    instruction = data['instruction'] if data['instruction'] else ("You are an instructor teaching medical students. You are "
+               "analyzing the following CT slices. Please review the slices provided below "
+               "carefully.")
+
+                    logger.info(f"normalized_img_list count: {len(normalized_img_list)}")
+
+                    content = []
+                    content.append({"type": "text", "text": instruction})
+                    # Use actual slice numbers (1-indexed) based on the original slice indices
+                    # slice_indices are 0-indexed internally, but we display as 1-indexed for users
+                    for slice_idx, ct_slice in zip(slice_indices, normalized_img_list):
+                        # Convert 0-indexed to 1-indexed for display
+                        actual_slice_number = slice_idx + 1
+                        content.append({"type": "image", "image": _encode(ct_slice)})
+                        content.append({"type": "text", "text": f"SLICE {actual_slice_number}"})
+                    content.append({"type": "text", "text": query})
+
+                    messages = [
+                        {
+                            "role": "user",
+                            "content": content
+                        }
+                    ]
+                    inputs = gem_processor.apply_chat_template(
+                                    messages,
+                                    add_generation_prompt=True,
+                                    continue_final_message=False,
+                                    return_tensors="pt",  # pytorch
+                                    tokenize=True,
+                                    return_dict=True,
+                                )
+
+                    # Run generative model
+                    with torch.inference_mode():
+                        inputs = inputs.to(gem_model.device, dtype=torch.bfloat16)
+                        # Seting do_sample to promote deterministic model response.
+                        # Setting max_new_tokens to constrain response length.
+                        generated_sequence = gem_model.generate(**inputs, do_sample=False, max_new_tokens=2000)
+
+                    # Process response
+                    medgemma_response = gem_processor.post_process_image_text_to_text(generated_sequence, skip_special_tokens=True)
+                    decoded_inputs = gem_processor.post_process_image_text_to_text(inputs["input_ids"], skip_special_tokens=True)
+                    medgemma_response = medgemma_response[0]
+                    # There can be added characters before the input text, so we need to find the
+                    # beginning of the input text in the generated text
+                    index_input_text = medgemma_response.find(decoded_inputs[0])
+                    if 0 <= index_input_text and index_input_text <= 2:
+                        # If the input text is found, we remove it
+                        medgemma_response = medgemma_response[index_input_text + len(decoded_inputs[0]):]
+                    logger.info(f"MedGemma Generated text: {medgemma_response}")
+                    #final_result_json["medgemma_response"] = medgemma_response
+                    return medgemma_response, final_result_json
+
+            if len(data['texts'])==1 and data['texts'][0]!='' and data['texts'][0]!={}:
+                orig_orient = sitk.DICOMOrientImageFilter_GetOrientationFromDirectionCosines(
+                    img.GetDirection()
+                )
+                logger.info(f"Original orientation: {orig_orient}")
+                img_ras = sitk.DICOMOrient(img, "RAS")
+                img_np = sitk.GetArrayFromImage(img_ras)[None]
+                voxtell_seg_np_ras = vox_predictor.predict_single_image(img_np, data['texts'][0])
+
+                voxtell_seg_sitk_ras = sitk.GetImageFromArray(voxtell_seg_np_ras[0])
+                voxtell_seg_sitk_ras.CopyInformation(img_ras)
+
+                voxtell_seg_sitk = sitk.DICOMOrient(voxtell_seg_sitk_ras, orig_orient)
+                voxtell_seg_np = sitk.GetArrayFromImage(voxtell_seg_sitk)
+
+
+                voxtell_elapsed = time.time() - start
+                logger.info(f"voxtell latency : {voxtell_elapsed} (sec)")
+                # final_result_json["dicom_seg"] = raw
+                final_result_json["prompt_info"] = result_json
+                final_result_json["voxtell_elapsed"] = voxtell_elapsed
+
+                if instanceNumber > instanceNumber2:
+                    final_result_json["flipped"] = True
+                else:
+                    final_result_json["flipped"] = False
+
+                timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+                final_result_json["label_name"] = data['texts'][0]
+
+                logger.info(f"final_result_json info: {final_result_json}")
+
+                return voxtell_seg_np, final_result_json
 
             def _safe_interaction(perform_callable):
                 try:
@@ -817,7 +1008,7 @@ class BasicInferTask(InferTask):
             if contrast_window != None and contrast_center !=None:
                 # Check for cats and remote controls
                 # VERY important: text queries need to be lowercased + end with a dot
-                if len(data['texts'])==1 and data['texts'][0]!='':
+                if len(data['texts'])==1 and data['texts'][0]!='' and data['texts'][0]!={}:
                     #model_id = "IDEA-Research/grounding-dino-tiny"
                     #processor = AutoProcessor.from_pretrained(model_id)
                     #model = AutoModelForZeroShotObjectDetection.from_pretrained(model_id).to(device)

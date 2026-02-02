@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Icons, PanelSection, ToolSettings, Switch, Label, Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@ohif/ui-next';
+import React, { useState, useEffect, useRef } from 'react';
+import { Icons, PanelSection, ToolSettings, Switch, Label, Select, SelectTrigger, SelectValue, SelectContent, SelectItem, Button, Input } from '@ohif/ui-next';
 import { Lock, LockOpen } from 'lucide-react';
 import { useSystem, useToolbar } from '@ohif/core';
 import classnames from 'classnames';
@@ -21,12 +21,14 @@ interface ButtonProps {
  * role in enhancing the app with a toolbox by providing a way to integrate
  * and display various tools and their corresponding options
  */
-export function Toolbox({ buttonSectionId, title }: { buttonSectionId: string; title: string }) {
+export function Toolbox({ buttonSectionId, title, defaultOpen = true }: { buttonSectionId: string; title: string; defaultOpen?: boolean }) {
   const { servicesManager, commandsManager } = useSystem();
   const { t } = useTranslation();
 
   const { toolbarService, customizationService } = servicesManager.services;
   const isAIToolBox = buttonSectionId === 'aiToolBox';
+  const isTextPromptToolbox = buttonSectionId === 'textPromptSegmentationToolbox';
+  const isTestMedgemmaToolbox = buttonSectionId === 'testMedgemmaToolbox';
   const [showConfig, setShowConfig] = useState(false);
   const [isLocked, setIsLocked] = useState(toolboxState.getLocked());
   const hotkeysDisabled = isAIToolBox && isLocked;
@@ -35,7 +37,32 @@ export function Toolbox({ buttonSectionId, title }: { buttonSectionId: string; t
   const [liveMode, setLiveMode] = useState(toolboxState.getLiveMode());
   const [posNeg, setPosNeg] = useState(toolboxState.getPosNeg());
   const [refineNew, setRefineNew] = useState(toolboxState.getRefineNew());
+  const [textPromptReplaceNew, setTextPromptReplaceNew] = useState(toolboxState.getTextPromptReplaceNew());
   const [selectedModel, setSelectedModel] = useState<'nnInteractive' | 'sam2' | 'medsam2' | 'sam3'>(toolboxState.getSelectedModel());
+  const [medgemmaResult, setMedgemmaResult] = useState(toolboxState.getMedgemmaResult());
+  const [medgemmaInstruction, setMedgemmaInstruction] = useState(toolboxState.getMedgemmaInstruction());
+  const [medgemmaQuery, setMedgemmaQuery] = useState(toolboxState.getMedgemmaQuery());
+  const [medgemmaStartSlice, setMedgemmaStartSlice] = useState<number | null>(toolboxState.getMedgemmaStartSlice());
+  const [medgemmaEndSlice, setMedgemmaEndSlice] = useState<number | null>(toolboxState.getMedgemmaEndSlice());
+  
+  // Sync medgemma state from toolboxState
+  useEffect(() => {
+    if (isTestMedgemmaToolbox) {
+      const interval = setInterval(() => {
+        const result = toolboxState.getMedgemmaResult();
+        const instruction = toolboxState.getMedgemmaInstruction();
+        const query = toolboxState.getMedgemmaQuery();
+        const startSlice = toolboxState.getMedgemmaStartSlice();
+        const endSlice = toolboxState.getMedgemmaEndSlice();
+        setMedgemmaResult(result);
+        setMedgemmaInstruction(instruction);
+        setMedgemmaQuery(query);
+        setMedgemmaStartSlice(startSlice);
+        setMedgemmaEndSlice(endSlice);
+      }, 100); // Check every 100ms for updates
+      return () => clearInterval(interval);
+    }
+  }, [isTestMedgemmaToolbox]);
 
   // Sync local state with global state changes
   useEffect(() => {
@@ -43,6 +70,7 @@ export function Toolbox({ buttonSectionId, title }: { buttonSectionId: string; t
       setLiveMode(toolboxState.getLiveMode());
       setPosNeg(toolboxState.getPosNeg());
       setRefineNew(toolboxState.getRefineNew());
+      setTextPromptReplaceNew(toolboxState.getTextPromptReplaceNew());
       setSelectedModel(toolboxState.getSelectedModel());
       setIsLocked(toolboxState.getLocked());
     };
@@ -272,7 +300,7 @@ export function Toolbox({ buttonSectionId, title }: { buttonSectionId: string; t
   const shouldCollapse = isAIToolBox && isLocked;
 
   return (
-    <PanelSection key={isAIToolBox ? `toolbox-${isLocked}` : buttonSectionId} defaultOpen={!shouldCollapse}>
+    <PanelSection key={isAIToolBox ? `toolbox-${isLocked}` : buttonSectionId} defaultOpen={defaultOpen && !shouldCollapse}>
       <PanelSection.Header 
         className="flex items-center justify-between"
       >
@@ -384,6 +412,22 @@ export function Toolbox({ buttonSectionId, title }: { buttonSectionId: string; t
                    </div>
                  </div>
                 )}
+              {isTextPromptToolbox && (
+                <div className="flex justify-center items-center gap-4 py-2 px-1">
+                   <div className="flex items-center gap-2">
+                     <Label htmlFor="replace-new">Replace/New</Label>
+                     <Switch
+                       id="replace-new"
+                       checked={textPromptReplaceNew}
+                       onCheckedChange={(checked) => {
+                        setTextPromptReplaceNew(checked);
+                        toolboxState.setTextPromptReplaceNew(checked);
+                        console.log('Replace/New:', checked);
+                      }}
+                     />
+                   </div>
+                 </div>
+                )}
               <div
                 className="bg-muted flex flex-wrap space-x-2 py-2 px-1"
               >
@@ -392,6 +436,11 @@ export function Toolbox({ buttonSectionId, title }: { buttonSectionId: string; t
                   return null;
                 }
                 const { id, Component, componentProps } = tool;
+
+                // Hide testMedgemma button since we have input fields in the Toolbox
+                if (isTestMedgemmaToolbox && id === 'testMedgemma') {
+                  return null;
+                }
 
                 return (
                   <div
@@ -409,6 +458,101 @@ export function Toolbox({ buttonSectionId, title }: { buttonSectionId: string; t
                 );
               })}
             </div>
+            {isTestMedgemmaToolbox && (
+              <div className="flex flex-col gap-3 py-3 px-2 border-t border-primary/20">
+                <div className="flex flex-col gap-2">
+                  <Label htmlFor="medgemma-instruction" className="text-sm font-semibold">Instruction (Optional)</Label>
+                  <textarea
+                    id="medgemma-instruction"
+                    value={medgemmaInstruction}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setMedgemmaInstruction(value);
+                      toolboxState.setMedgemmaInstruction(value);
+                    }}
+                    placeholder="Enter instruction (e.g., 'You are an instructor teaching medical students...')"
+                    className="min-h-[60px] text-sm bg-primary-dark border border-primary-main rounded p-2 text-white placeholder:text-primary-light resize-y"
+                  />
+                </div>
+                <div className="flex flex-col gap-2">
+                  <Label htmlFor="medgemma-query" className="text-sm font-semibold">Query</Label>
+                  <textarea
+                    id="medgemma-query"
+                    value={medgemmaQuery}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setMedgemmaQuery(value);
+                      toolboxState.setMedgemmaQuery(value);
+                    }}
+                    placeholder="Enter your query/question"
+                    className="min-h-[60px] text-sm bg-primary-dark border border-primary-main rounded p-2 text-white placeholder:text-primary-light resize-y"
+                  />
+                </div>
+                <div className="flex flex-col gap-2">
+                  <Label className="text-sm font-semibold">Slice Range (Optional)</Label>
+                  <div className="flex gap-2">
+                    <div className="flex flex-col gap-1 flex-1">
+                      <Label htmlFor="medgemma-start-slice" className="text-xs text-primary-light">Start Slice (min: 1)</Label>
+                      <input
+                        id="medgemma-start-slice"
+                        type="number"
+                        min="1"
+                        value={medgemmaStartSlice ?? ''}
+                        onChange={(e) => {
+                          const value = e.target.value === '' ? null : parseInt(e.target.value, 10);
+                          setMedgemmaStartSlice(value);
+                          toolboxState.setMedgemmaStartSlice(value);
+                        }}
+                        placeholder="1"
+                        className="text-sm bg-primary-dark border border-primary-main rounded p-2 text-white placeholder:text-primary-light"
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1 flex-1">
+                      <Label htmlFor="medgemma-end-slice" className="text-xs text-primary-light">End Slice (max: total slices)</Label>
+                      <input
+                        id="medgemma-end-slice"
+                        type="number"
+                        min="1"
+                        value={medgemmaEndSlice ?? ''}
+                        onChange={(e) => {
+                          const value = e.target.value === '' ? null : parseInt(e.target.value, 10);
+                          setMedgemmaEndSlice(value);
+                          toolboxState.setMedgemmaEndSlice(value);
+                        }}
+                        placeholder="Total slices"
+                        className="text-sm bg-primary-dark border border-primary-main rounded p-2 text-white placeholder:text-primary-light"
+                      />
+                    </div>
+                  </div>
+                </div>
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={() => {
+                    commandsManager?.run('testMedgemma', { 
+                      instruction: medgemmaInstruction, 
+                      query: medgemmaQuery,
+                      startSlice: medgemmaStartSlice,
+                      endSlice: medgemmaEndSlice
+                    });
+                  }}
+                  disabled={!medgemmaQuery || medgemmaQuery.trim() === ''}
+                  className="w-full"
+                >
+                  Run Medgemma
+                </Button>
+                {medgemmaResult && (
+                  <div className="flex flex-col gap-2 mt-2">
+                    <Label className="text-sm font-semibold">Result:</Label>
+                    <div className="bg-primary-dark border border-primary-main rounded p-3 max-h-[300px] overflow-y-auto">
+                      <pre className="whitespace-pre-wrap break-words text-sm text-white">
+                        {medgemmaResult}
+                      </pre>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
             </React.Fragment>
           );
         })}
