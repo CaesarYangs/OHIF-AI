@@ -186,7 +186,7 @@ With **VoxTell**, you can obtain segmentation using **free-form text** instead o
   <img src="docs/images/text_prompt.png" alt="Text-Prompt Segmentation (VoxTell)" width="700">
 </a>
 
-**VoxTell demo:** [Watch on YouTube](https://youtu.be/LsngrUz_vXk)
+**VoxTell demo:**
 
 <a href="https://youtu.be/LsngrUz_vXk" target="_blank">
   <img src="https://img.youtube.com/vi/LsngrUz_vXk/0.jpg" alt="VoxTell Demo" width="700">
@@ -208,7 +208,7 @@ Use the Medgemma panel to set Instruction, Query, and slice range, then run infe
   <img src="docs/images/medgemma.png" alt="Report Generation (Medgemma 1.5 4B)" width="700">
 </a>
 
-**VoxTell + MedGemma demo:** [Watch on YouTube](https://youtu.be/HU4XHAC67cQ)
+**VoxTell + MedGemma demo:**
 
 <a href="https://youtu.be/HU4XHAC67cQ" target="_blank">
   <img src="https://img.youtube.com/vi/HU4XHAC67cQ/0.jpg" alt="VoxTell + MedGemma Demo" width="700">
