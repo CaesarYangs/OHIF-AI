@@ -199,8 +199,8 @@ Use the **Refine/New** toggle to control segmentation behavior:
 
 **VoxTell demo:**
 
-<a href="https://youtu.be/LsngrUz_vXk" target="_blank">
-  <img src="https://img.youtube.com/vi/LsngrUz_vXk/sddefault.jpg" alt="VoxTell Demo" width="700">
+<a href="https://youtu.be/NOajvjTfGnU" target="_blank">
+  <img src="https://img.youtube.com/vi/NOajvjTfGnU/maxresdefault.jpg" alt="VoxTell Demo" width="700">
 </a>
 
 ### Report generation
@@ -223,8 +223,8 @@ Use the Medgemma panel to set Instruction, Query, and slice range, then run infe
 
 **VoxTell + MedGemma demo:**
 
-<a href="https://youtu.be/HU4XHAC67cQ" target="_blank">
-  <img src="https://img.youtube.com/vi/HU4XHAC67cQ/sddefault.jpg" alt="VoxTell + MedGemma Demo" width="700">
+<a href="https://youtu.be/Rl-LKu_wWMQ" target="_blank">
+  <img src="https://img.youtube.com/vi/Rl-LKu_wWMQ/maxresdefault.jpg" alt="VoxTell + MedGemma Demo" width="700">
 </a>
 
 ---
