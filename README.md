@@ -24,7 +24,7 @@ By combining these foundation models with the familiar OHIF interface, researche
   - [Segmentation](#segmentation)
     - [Visual prompts](#visual-prompts)
     - [Model selection & inference](#model-selection)
-    - [Text-prompt segmentation (VoxTell)](#text-prompt-segmentation-voxtell)
+    - [Text-prompt segmentation](#text-prompt-segmentation-voxtell)
   - [Report generation](#report-generation-medgemma-15-4b)
 - [Keyboard Shortcuts](#-keyboard-shortcuts)
 - [FAQ](#-faq)
@@ -38,7 +38,7 @@ By combining these foundation models with the familiar OHIF interface, researche
 
 **Segmentation (medical imaging)**  
 - 🖱️ **Visual prompts** — Real-time segmentation with points, scribbles, lassos, and bounding boxes  
-- 📝 **Text prompts (VoxTell)** — Free-form text to obtain segmentation (see [Text-prompt segmentation (VoxTell)](#text-prompt-segmentation-voxtell) for usage and important notices)  
+- 📝 **Text prompts** — Free-form text to obtain segmentation (see [Text-prompt segmentation](#text-prompt-segmentation-voxtell) for usage and important notices)  
 - 🚀 **Live mode** — Automatic inference on every prompt  
 - 📦 **3D propagation** — Single prompt segments the entire volume  
 - 🤖 **Multiple models** — nnInteractive, SAM2, MedSAM2, SAM3, and VoxTell  
@@ -121,7 +121,7 @@ Model checkpoints are typically downloaded automatically during setup. However, 
 
 ### Segmentation
 
-OHIF-AI supports interactive segmentation in two ways: **visual prompts** (points, scribbles, lassos, bounding boxes) and **text prompts** (VoxTell). Visual prompts are described below; text-prompt segmentation (VoxTell) has its own subsection with usage and important notices.
+OHIF-AI supports interactive segmentation in two ways: **visual prompts** (points, scribbles, lassos, bounding boxes) and **text prompts**. Visual prompts are described below; text-prompt segmentation has its own subsection with usage and important notices.
 
 #### Visual prompts
 
@@ -182,9 +182,9 @@ Use the **Refine/New** toggle to control segmentation behavior:
 
 💡 You can revisit any existing segment at any time by selecting it from the segmentation list — once selected, new prompts will continue refining that specific segmentation interactively.
 
-#### Text-prompt segmentation (VoxTell)
+#### Text-prompt segmentation
 
-**VoxTell** is part of the segmentation workflow: it produces segmentations from **free-form text** instead of (or in addition to) visual prompts. Describe the structure or region you want to segment in natural language.
+**VoxTell** is part of the segmentation workflow: it produces segmentations from **free-form text** instead of visual prompts. Describe the structure or region you want to segment in natural language.
 
 - **Replace current segment** – Use your text prompt to replace the currently selected segment.
 - **Add segment label** – Create an additional segment with a new label from your text prompt.
@@ -203,7 +203,7 @@ Use the **Refine/New** toggle to control segmentation behavior:
   <img src="https://img.youtube.com/vi/LsngrUz_vXk/0.jpg" alt="VoxTell Demo" width="700">
 </a>
 
-### Report generation (Medgemma 1.5 4B)
+### Report generation
 
 **Medgemma 1.5 4B** generates radiology-style reports from 3D medical images (CT/MRI). This is separate from segmentation and adds AI-assisted reporting to OHIF-AI.
 
