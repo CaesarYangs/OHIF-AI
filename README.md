@@ -54,7 +54,7 @@ By combining these foundation models with the familiar OHIF interface, researche
 ## 🎥 Demo Video
 
 <a href="https://youtu.be/z3aq3yd-KRA" target="_blank">
-  <img src="https://img.youtube.com/vi/z3aq3yd-KRA/0.jpg" alt="Demo Video" width="700">
+  <img src="https://img.youtube.com/vi/z3aq3yd-KRA/maxresdefault.jpg" alt="Demo Video" width="700">
 </a>
 
 Click to watch the full demonstration of OHIF-AI in action.
@@ -200,7 +200,7 @@ Use the **Refine/New** toggle to control segmentation behavior:
 **VoxTell demo:**
 
 <a href="https://youtu.be/LsngrUz_vXk" target="_blank">
-  <img src="https://img.youtube.com/vi/LsngrUz_vXk/0.jpg" alt="VoxTell Demo" width="700">
+  <img src="https://img.youtube.com/vi/LsngrUz_vXk/maxresdefault.jpg" alt="VoxTell Demo" width="700">
 </a>
 
 ### Report generation
@@ -224,7 +224,7 @@ Use the Medgemma panel to set Instruction, Query, and slice range, then run infe
 **VoxTell + MedGemma demo:**
 
 <a href="https://youtu.be/HU4XHAC67cQ" target="_blank">
-  <img src="https://img.youtube.com/vi/HU4XHAC67cQ/0.jpg" alt="VoxTell + MedGemma Demo" width="700">
+  <img src="https://img.youtube.com/vi/HU4XHAC67cQ/maxresdefault.jpg" alt="VoxTell + MedGemma Demo" width="700">
 </a>
 
 ---
