@@ -4,11 +4,14 @@
 [![CUDA](https://img.shields.io/badge/CUDA-12.6-green.svg)](https://developer.nvidia.com/cuda-toolkit)
 [![YouTube](https://img.shields.io/badge/demo-video-red.svg)](https://youtu.be/z3aq3yd-KRA)
 
-**Interactive AI segmentation for medical imaging, directly in your browser.**
+**Interactive AI segmentation and report generation for medical imaging, directly in your browser.**
 
-OHIF-AI integrates state-of-the-art interactive segmentation models such as **nnInteractive**, **SAM2**, **MedSAM2**, and **SAM3**, plus **VoxTell** (text-prompt segmentation) and **Medgemma 1.5** (report generation from 3D medical images), into the **OHIF Viewer**, enabling convenient and accurate real-time, prompt-based segmentation and AI-assisted reporting directly in the browser.
+OHIF-AI brings two main capabilities into the <a href="https://ohif.org/" target="_blank">OHIF Viewer</a>:
 
-By combining the capabilities of large foundation models with the familiar <a href="https://ohif.org/" target="_blank">OHIF</a> interface, users can guide AI segmentation using simple visual prompts — such as **points**, **scribbles**, **lassos**, or **bounding boxes** — or free-form **text prompts** (VoxTell), and generate radiology-style reports from 3D CT/MRI using **Medgemma 1.5**. The integration supports iterative refinement, live inference, model selection, and report generation, offering a flexible framework for researchers and clinicians to explore next-generation segmentation and reporting workflows without leaving the web environment.
+1. **Segmentation** — Interactive AI segmentation for medical imaging using **visual prompts** (points, scribbles, lassos, bounding boxes) with models such as **nnInteractive**, **SAM2**, **MedSAM2**, and **SAM3**, or using **text prompts** with **VoxTell**. Supports iterative refinement, live inference, and 3D propagation from minimal input.
+2. **Report generation** — AI-assisted radiology-style reports from 3D CT/MRI using **Medgemma 1.5**.
+
+By combining these foundation models with the familiar OHIF interface, researchers and clinicians can perform prompt-based segmentation and generate reports without leaving the web environment.
 
 ---
 
@@ -18,13 +21,11 @@ By combining the capabilities of large foundation models with the familiar <a hr
 - [Demo Video](#-demo-video)
 - [Getting Started](#-getting-started)
 - [Usage Guide](#-usage-guide)
-  - [Segmentation Prompts](#segmentation-prompts)
-  - [Running Inference](#running-inference)
-  - [Positive and Negative Prompts](#positive-and-negative-prompts)
-  - [Refine vs. New Segment](#refine-vs-new-segment)
-  - [Model Selection](#model-selection)
-  - [Text-Prompt Segmentation (VoxTell)](#text-prompt-segmentation-voxtell)
-  - [Report Generation (Medgemma 1.5 4B)](#report-generation-medgemma-15-4b)
+  - [Segmentation](#segmentation)
+    - [Visual prompts](#visual-prompts)
+    - [Model selection & inference](#model-selection)
+    - [Text-prompt segmentation (VoxTell)](#text-prompt-segmentation-voxtell)
+  - [Report generation](#report-generation-medgemma-15-4b)
 - [Keyboard Shortcuts](#-keyboard-shortcuts)
 - [FAQ](#-faq)
 - [How to Cite](#-how-to-cite)
@@ -35,14 +36,18 @@ By combining the capabilities of large foundation models with the familiar <a hr
 
 ## ✨ Features
 
-- 🖱️ **Interactive Segmentation** - Real-time AI segmentation with visual prompts
-- 📝 **Text-Prompt Segmentation (VoxTell)** - Free-form text prompts to get segmentation
-- 📄 **Report Generation (Medgemma 1.5 4B)** - Generate reports from 3D CT/MRI with configurable instruction, query, and slice range
-- 🚀 **Live Mode** - Automatic inference on every prompt
-- 📦 **3D Propagation** - Single prompt automatically segments entire volume
-- 🎯 **Multiple Prompt Types** - Points, scribbles, lassos, bounding boxes, and text (VoxTell)
-- 🤖 **Multiple AI Models** - Choose among nnInteractive, SAM2, MedSAM2, SAM3, and VoxTell
-- 🌐 **Browser-Based** - No installation required, works directly in your web browser
+**Segmentation (medical imaging)**  
+- 🖱️ **Visual prompts** — Real-time segmentation with points, scribbles, lassos, and bounding boxes  
+- 📝 **Text prompts (VoxTell)** — Free-form text to obtain segmentation (see [Text-prompt segmentation (VoxTell)](#text-prompt-segmentation-voxtell) for usage and important notices)  
+- 🚀 **Live mode** — Automatic inference on every prompt  
+- 📦 **3D propagation** — Single prompt segments the entire volume  
+- 🤖 **Multiple models** — nnInteractive, SAM2, MedSAM2, SAM3, and VoxTell  
+
+**Report generation**  
+- 📄 **Medgemma 1.5 4B** — Generate radiology-style reports from 3D CT/MRI with configurable instruction, query, and slice range  
+
+**General**  
+- 🌐 **Browser-based** — No local installation; runs in the web browser
 
 ---
 
@@ -114,9 +119,13 @@ Model checkpoints are typically downloaded automatically during setup. However, 
 
 ## 📖 Usage Guide
 
-### Segmentation Prompts
+### Segmentation
 
-The tool provides four different prompt types for segmentation (shown in red boxes from left to right):
+OHIF-AI supports interactive segmentation in two ways: **visual prompts** (points, scribbles, lassos, bounding boxes) and **text prompts** (VoxTell). Visual prompts are described below; text-prompt segmentation (VoxTell) has its own subsection with usage and important notices.
+
+#### Visual prompts
+
+The tool provides four visual prompt types for segmentation (shown in red boxes from left to right):
 
 <img src="docs/images/tools.png" alt="Segmentation Tools" width="700">
 
@@ -129,7 +138,7 @@ The tool provides four different prompt types for segmentation (shown in red box
   <img src="docs/images/all_prompts.png" alt="All Prompts Example" width="700">
 </a>
 
-### Model Selection
+#### Model selection
 
 Choose which segmentation model to use:
 
@@ -138,7 +147,7 @@ Choose which segmentation model to use:
 
 💡 Based on preliminary internal testing, nnInteractive provides faster inference and generally feels more real-time and accurate in typical clinical image segmentation tasks.
 
-### Running Inference
+#### Running inference
 
 After providing prompts and choosing the model, you can run inference by clicking the inference button located next to the red box:
 
@@ -150,7 +159,7 @@ After providing prompts and choosing the model, you can run inference by clickin
   <img src="docs/images/output.png" alt="Output" width="700">
 </a>
 
-### Positive and Negative Prompts
+#### Positive and negative prompts
 
 You can exclude certain structures from your segmentation by toggling on the **neg.** (negative) button before providing prompts.
 
@@ -164,7 +173,7 @@ You can exclude certain structures from your segmentation by toggling on the **n
   <img src="docs/images/point_pos_neg.png" alt="Neg Point Example" width="700">
 </a>
 
-### Refine vs. New Segment
+#### Refine vs. new segment
 
 Use the **Refine/New** toggle to control segmentation behavior:
 
@@ -173,14 +182,16 @@ Use the **Refine/New** toggle to control segmentation behavior:
 
 💡 You can revisit any existing segment at any time by selecting it from the segmentation list — once selected, new prompts will continue refining that specific segmentation interactively.
 
-### Text-Prompt Segmentation (VoxTell)
+#### Text-prompt segmentation (VoxTell)
 
-With **VoxTell**, you can obtain segmentation using **free-form text** instead of (or in addition to) visual prompts. Describe the structure or region you want to segment in natural language.
+**VoxTell** is part of the segmentation workflow: it produces segmentations from **free-form text** instead of (or in addition to) visual prompts. Describe the structure or region you want to segment in natural language.
 
 - **Replace current segment** – Use your text prompt to replace the currently selected segment.
 - **Add segment label** – Create an additional segment with a new label from your text prompt.
 
-⚠️ **Note:** Cross-usage with nnInteractive is not supported yet (e.g., VoxTell → nnInteractive). Use VoxTell and nnInteractive in separate workflows.
+**Notices:**
+
+- ⚠️ **Cross-usage with nnInteractive** — Not supported yet (e.g., VoxTell → nnInteractive). Use VoxTell and nnInteractive in separate workflows.
 
 <a href="docs/images/text_prompt.png" target="_blank">
   <img src="docs/images/text_prompt.png" alt="Text-Prompt Segmentation (VoxTell)" width="700">
@@ -192,9 +203,9 @@ With **VoxTell**, you can obtain segmentation using **free-form text** instead o
   <img src="https://img.youtube.com/vi/LsngrUz_vXk/0.jpg" alt="VoxTell Demo" width="700">
 </a>
 
-### Report Generation (Medgemma 1.5 4B)
+### Report generation (Medgemma 1.5 4B)
 
-**Medgemma 1.5 4B** generates radiology-style reports from 3D medical images (CT/MRI).
+**Medgemma 1.5 4B** generates radiology-style reports from 3D medical images (CT/MRI). This is separate from segmentation and adds AI-assisted reporting to OHIF-AI.
 
 - **Instruction** – Define the broad role of Medgemma (e.g., “You are a radiology assistant”) so the model follows your intended style and scope.
 - **Query** – Ask specifically what you want in the report (e.g., findings, impressions, or a full report).
@@ -202,7 +213,9 @@ With **VoxTell**, you can obtain segmentation using **free-form text** instead o
 
 Use the Medgemma panel to set Instruction, Query, and slice range, then run inference to generate the report.
 
-⚠️ **GPU / VRAM:** MedGemma uses ~35 GB VRAM. Use one large GPU for all models, or a dedicated GPU for MedGemma by setting `device_map={"": "cuda:1"}` (or another device ID) in `monai-label/monailabel/tasks/infer/basic_infer.py`.
+**Notice:**
+
+- ⚠️ **GPU / VRAM** — MedGemma uses ~35 GB VRAM. Use one large GPU for all models, or a dedicated GPU for MedGemma by setting `device_map={"": "cuda:1"}` (or another device ID) in `monai-label/monailabel/tasks/infer/basic_infer.py`.
 
 <a href="docs/images/medgemma.png" target="_blank">
   <img src="docs/images/medgemma.png" alt="Report Generation (Medgemma 1.5 4B)" width="700">
