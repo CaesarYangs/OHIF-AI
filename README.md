@@ -66,6 +66,13 @@ Click to watch the full demonstration of OHIF-AI in action.
 ### Prerequisites
 
 - **Docker** (v27.3.1 or later)
+- **Docker Compose** — if `docker compose` is not available, install the plugin:
+  ```bash
+  mkdir -p ~/.docker/cli-plugins
+  curl -SL https://github.com/docker/compose/releases/download/v2.27.1/docker-compose-linux-x86_64 \
+    -o ~/.docker/cli-plugins/docker-compose
+  chmod +x ~/.docker/cli-plugins/docker-compose
+  ```
 - **NVIDIA Container Toolkit** (v1.16.2 or later)
 - **CUDA** v12.6 or compatible version
 - NVIDIA GPU with appropriate drivers
