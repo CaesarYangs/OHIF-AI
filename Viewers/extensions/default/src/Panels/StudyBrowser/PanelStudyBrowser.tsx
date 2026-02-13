@@ -358,8 +358,6 @@ function PanelStudyBrowser({
     viewports,
     displaySetService,
     customMapDisplaySets,
-    initialSortApplied,
-    customizationService,
   ]);
 
   const tabs = createStudyBrowserTabs(StudyInstanceUIDs, studyDisplayList, displaySets);
