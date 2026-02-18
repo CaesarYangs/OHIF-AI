@@ -18,8 +18,8 @@ services:
       # Logs
       - ./Viewers/platform/app/.recipes/Nginx-Orthanc/logs/nginx:/var/logs/nginx
     ports:
-      - '1025:1025' # SSL
-      - '1026:1026' # Web
+      - "1025:1025" # SSL
+      - "1026:1026" # Web
     depends_on:
       #   - keycloak
       - orthanc
@@ -39,36 +39,38 @@ services:
       - ./Viewers/platform/app/.recipes/Nginx-Orthanc/volumes/orthanc-db/:/var/lib/orthanc/db/
     restart: unless-stopped
     ports:
-      - '4242:4242' # Orthanc REST API
-      - '8042:8042' # Orthanc HTTP
-  
+      - "4242:4242" # Orthanc REST API
+      - "8042:8042" # Orthanc HTTP
+
   monai_sam2:
     build:
-      # Project root
       context: ./
-      # Relative to context
       dockerfile: ./monai-label/Dockerfile
     image: monai
-    runtime: nvidia
     container_name: monai_sam2
+    # runtime: nvidia # 某些旧版 Docker 需要此行，现代版本建议通过 deploy 控制
     volumes:
-       # Persist data
       - ./monai-label/predictions:/code/predictions
+      # 建议增加模型缓存路径挂载，避免每次重启都重新下载几GB的模型
+      - ./monai-label/huggingface_cache:/root/.cache/huggingface
     environment:
       - CUDA_VISIBLE_DEVICES=0
-      - NVIDIA_VISIBLE_DEVICES=all  # This exposes all GPUs to the container
+      - NVIDIA_VISIBLE_DEVICES=all
       - NVIDIA_DRIVER_CAPABILITIES=all
-    #  - NVIDIA_DRIVER_CAPABILITIES=compute,utility  # Required driver capabilities for GPU use
+      # --- 关键修改 1: 解决国内连接 HuggingFace 失败的问题 ---
+      - HF_ENDPOINT=https://hf-mirror.com
+      # 强制应用识别 GPU (取决于 MONAI Label 内部实现，有时需要显式指定)
+      - monailabel_device=cuda
     deploy:
       resources:
         reservations:
           devices:
             - driver: nvidia
-            #  device_ids: ['7:1']
-              capabilities: [gpu]  # Request GPUs for this service
-    shm_size: '10gb' #runtime: nvidia  # Use NVIDIA runtime
+              count: all # 或者 count: 1
+              capabilities: [gpu]
+    shm_size: "12gb" # SAM2 模型较大，建议稍微调大一些
     ports:
-      - '8002:8002' 
+      - "8002:8002"
     depends_on:
       - ohif_viewer
       - orthanc
